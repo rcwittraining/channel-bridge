@@ -33,11 +33,12 @@ $('btnGen').addEventListener('click', async ()=>{
       method:'POST', headers:{'Content-Type':'application/json'},
       body:JSON.stringify({contents:[{role:'user',parts:[{text:sys+'\n\nTopic: '+prompt}]}]})
     });
-    if(!r.ok) throw new Error('AI request failed ('+r.status+')');
+    if(!r.ok){ let msg='AI request failed ('+r.status+')'; try{ const ej=await r.json(); msg+=' — '+(ej.error&&(ej.error.message||ej.error.status)||''); }catch(_){} throw new Error(msg); }
     const j=await r.json();
     const txt=j.candidates[0].content.parts[0].text;
     const data=JSON.parse(txt.replace(/```json|```/g,'').trim());
-    state.slides=(data.slides||[]).map(s=>({h:(s.heading||s.h||'Step'),b:(s.body||s.b||'')}));
+    const raw=data.slides||data.slides_list||[];
+    state.slides=raw.map(s=>({h:(s.heading||s.h||s.title||'Step'),b:(s.body||s.b||s.content||s.text||'')}));
     if(!state.slides.length) state.slides=[{h:'Lab Exercise',b:prompt}];
     $('vTitle').value=data.title||prompt;
     $('vDesc').value=(data.description||'Hands-on lab exercise from RCW IT Training.\n\nPractice free: www.rcwittraining.in')+'\n\n#RHCSA #Linux #AWS #Azure #ITTraining';
