@@ -100,7 +100,7 @@ $('btnCloudRender').addEventListener('click', async ()=>{
   const pat=prompt('GitHub PAT (Actions read/write on channel-bridge-renderer):');
   if(!pat) return;
   const cid=$('bridgeClientId').value.trim(), cs=$('bridgeSecret').value.trim(), rt=$('bridgeRefresh').value.trim();
-  if(!cid||!cs||!rt){ alert('Enter your YouTube OAuth credentials in the Bridge tab first (client id, secret, refresh token).'); return; }
+  if(!cid||!cs||!rt){ alert('Enter your YouTube OAuth credentials in the Bridge tab first.'); return; }
   const script={title:title, description:$('vDesc').value, tags:($('vTags').value||'').split(',').map(s=>s.trim()).filter(Boolean), slides:state.slides.map(s=>({heading:s.h, body:s.b, narration:s.b}))};
   const b64=btoa(unescape(encodeURIComponent(JSON.stringify(script))));
   const privacy=$('pPrivacy')?$('pPrivacy').value:'unlisted';
@@ -113,8 +113,7 @@ $('btnCloudRender').addEventListener('click', async ()=>{
       body:JSON.stringify({ref:'main',inputs:{script:b64, privacy:privacy, playlist:playlist, yt_client_id:cid, yt_client_secret:cs, yt_refresh_token:rt}})
     });
     if(!r.ok) throw new Error('Dispatch failed ('+r.status+')');
-    $('cloudStatus').innerHTML='✅ Render + upload started! Tracking progress… (private for now)';
-    // poll the run
+    $('cloudStatus').innerHTML='✅ Render + upload started! Tracking progress…';
     let tries=0;
     const poll=setInterval(async ()=>{
       tries++;
@@ -125,22 +124,105 @@ $('btnCloudRender').addEventListener('click', async ()=>{
         if(run.status==='completed'){
           clearInterval(poll);
           if(run.conclusion==='success'){
-            // fetch logs to extract VIDEO_URL
             try{
               const logs=await (await fetch('https://api.github.com/repos/rcwittraining/channel-bridge-renderer/actions/runs/'+run.id+'/logs',{headers:{'Authorization':'Bearer '+pat}})).text();
               const m=logs.match(/https:\/\/youtu\.be\/[A-Za-z0-9_-]+/);
-              if(m) $('cloudStatus').innerHTML='🎉 <b>Video published!</b><br><a href="'+m[0]+'" target="_blank" rel="noopener">'+m[0]+'</a><br><span class="small">Cleanup done: no artifacts kept, runner files auto-deleted.</span>';
-              else $('cloudStatus').innerHTML='✅ Render finished (no VIDEO_URL found — check if YT credentials were provided). <a href="https://github.com/rcwittraining/channel-bridge-renderer/actions" target="_blank" rel="noopener">View run</a>';
+              if(m) $('cloudStatus').innerHTML='🎉 <b>Video published!</b><br><a href="'+m[0]+'" target="_blank" rel="noopener">'+m[0]+'</a><br><span class="small">Cleanup done: no artifacts kept.</span>';
+              else $('cloudStatus').innerHTML='✅ Render finished (no VIDEO_URL found). <a href="https://github.com/rcwittraining/channel-bridge-renderer/actions" target="_blank" rel="noopener">View run</a>';
             }catch(e){ $('cloudStatus').innerHTML='✅ Render finished. <a href="https://github.com/rcwittraining/channel-bridge-renderer/actions" target="_blank" rel="noopener">View run</a>'; }
           }else{
             $('cloudStatus').innerHTML='❌ Render/upload failed. <a href="https://github.com/rcwittraining/channel-bridge-renderer/actions" target="_blank" rel="noopener">Check the run logs</a>';
           }
-        }else if(tries>60){ clearInterval(poll); $('cloudStatus').textContent='Still running… check the Actions page for status.'; }
+        }else if(tries>60){ clearInterval(poll); $('cloudStatus').textContent='Still running… check the Actions page.'; }
       }catch(e){ if(tries>60){clearInterval(poll);} }
     },10000);
   }catch(e){ $('cloudStatus').textContent='❌ '+e.message; }
 });
 
+
+/* ---------- CLOUD RENDER (unlimited-size video via GitHub Actions) ---------- */
+$('btnCloudRender').addEventListener('click', async ()=>{
+  const title=$('vTitle').value.trim()||'RCW Lab Exercise';
+  if(!state.slides.length){ alert('No slides to render.'); return; }
+  // build the script JSON (slides + narration = body text read aloud)
+  const script={title:title, slides:state.slides.map(s=>({heading:s.h, body:s.b, narration:s.b}))};
+  const b64=btoa(unescape(encodeURIComponent(JSON.stringify(script))));
+  // call the renderer repo workflow (requires a PAT; see README)
+  $('cloudStatus').textContent='Sending to cloud renderer…';
+  const token=prompt('Enter a GitHub PAT with Actions write on channel-bridge-renderer (see README for 1-time setup):');
+  if(!token) return;
+  try{
+    const r=await fetch('https://api.github.com/repos/rcwittraining/channel-bridge-renderer/actions/workflows/render.yml/dispatches',{
+      method:'POST',
+      headers:{'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json','Content-Type':'application/json','X-GitHub-Api-Version':'2022-11-28'},
+      body:JSON.stringify({ref:'main',inputs:{script:b64}})
+    });
+    if(!r.ok) throw new Error('Dispatch failed ('+r.status+')');
+    $('cloudStatus').innerHTML='✅ Sent! The cloud machine is rendering your video now.<br>Watch it: <a href="https://github.com/rcwittraining/channel-bridge-renderer/actions" target="_blank" rel="noopener">github.com/rcwittraining/channel-bridge-renderer/actions</a> → open the run → Artifacts → download <b>rendered-video</b>. No size limit — it renders on cloud CPU.';
+    alert('Video render started! Check the Actions page for the download link (takes 1-3 min).');
+  }catch(e){ $('cloudStatus').textContent='❌ '+e.message; }
+});
+
+/* ---------- recording studio ---------- */
+function renderTele(){
+  const s=state.slides[state.slideIdx]||{h:'',b:''};
+  $('teleprompter').textContent=s.h+' — '+s.b;
+  $('recStatus').textContent='Slide '+(state.slideIdx+1)+' of '+state.slides.length+' · mic: '+(state.recording?'recording':'ready');
+}
+$('btnNext').addEventListener('click', ()=>{ if(state.slideIdx<state.slides.length-1){state.slideIdx++;renderTele();drawSlide(state.slideIdx);} });
+
+function drawSlide(idx){
+  const cv=$('recCanvas'); if(!cv)return; const ctx=cv.getContext('2d');
+  const s=state.slides[idx]||{h:'',b:''};
+  ctx.fillStyle='#061633'; ctx.fillRect(0,0,1280,720);
+  ctx.fillStyle='#ffd51d'; ctx.fillRect(0,0,1280,10);
+  ctx.fillStyle='#ffffff'; ctx.font='900 52px Arial'; ctx.fillText(s.h||'RCW IT Training',60,110);
+  ctx.fillStyle='#dbe7ff'; ctx.font='400 30px Arial'; ctx.textBaseline='top';
+  let y=170;
+  (s.b||'').split('\n').forEach(line=>{ ctx.fillText(line.length>95?line.slice(0,95)+'…':line,60,y); y+=44; });
+  ctx.fillStyle='#4bd7ff'; ctx.font='700 24px Arial';
+  ctx.fillText('RCW IT Training — Free Practice Labs · www.rcwittraining.in',60,660);
+}
+
+$('btnRec').addEventListener('click', async ()=>{
+  if(!state.slides.length){ alert('Create a script first (Generate or Manual).'); return; }
+  if(!state.recording){
+    try{
+      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      state.slideIdx=0; drawSlide(0);
+      const cap=$('recCanvas').captureStream(30);
+      cap.addTrack(stream.getAudioTracks()[0]);
+      const mime=MediaRecorder.isTypeSupported('video/webm;codecs=vp9')?'video/webm;codecs=vp9':'video/webm';
+      state.mediaRec=new MediaRecorder(cap,{mimeType:mime,audioBitsPerSecond:128000,videoBitsPerSecond:2500000});
+      state.chunks=[];
+      state.mediaRec.ondataavailable=e=>{ if(e.data.size)state.chunks.push(e.data); };
+      state.mediaRec.onstop=()=>{
+        state.blob=new Blob(state.chunks,{type:'video/webm'});
+        state.videoUrl=URL.createObjectURL(state.blob);
+        $('prevVideo').src=state.videoUrl;
+        $('fileInfo').textContent='Video ready: '+(state.blob.size/1048576).toFixed(1)+' MB (WebM). Tap Upload to YouTube.';
+        $('doneCard').style.display='block';
+        stream.getTracks().forEach(t=>t.stop());
+        $('btnRec').textContent='🔴 Start recording';
+        $('recDot').classList.remove('on');
+        state.recording=false; clearInterval(state.autoTimer); renderTele();
+      };
+      state.mediaRec.start(500);
+      state.recording=true;
+      $('btnRec').textContent='⏹ Stop recording';
+      $('recDot').classList.add('on');
+      renderTele();
+      state.autoTimer=setInterval(()=>{ if(state.slideIdx<state.slides.length-1){state.slideIdx++;drawSlide(state.slideIdx);renderTele();} },12000);
+    }catch(e){ alert('Mic access is needed for narration: '+e.message); }
+  }else{ state.mediaRec.stop(); }
+});
+
+/* ---------- publish ---------- */
+function fillPublish(){
+  $('pTitle').value=$('vTitle').value;
+  $('pDesc').value=$('vDesc').value;
+  $('pTags').value=$('vTags').value;
+}
 $('btnThumbFromSlide').addEventListener('click', ()=>{ drawSlide(0); window.__thumbDataUrl=$('recCanvas').toDataURL('image/jpeg',0.9); alert('Thumbnail set from slide 1.'); });
 $('btnThumbFile').addEventListener('click', ()=>$('thumbFile').click());
 $('thumbFile').addEventListener('change', e=>{ const f=e.target.files[0]; if(f){ const r=new FileReader(); r.onload=()=>{window.__thumbDataUrl=r.result; alert('Thumbnail chosen.');}; r.readAsDataURL(f);} });
