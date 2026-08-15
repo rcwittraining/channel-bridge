@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RCW Channel Bridge</title>
+<meta name="description" content="Prompt → script → slides + voiceover video → upload to YouTube. Runs on your phone.">
+<meta name="theme-color" content="#061633">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<style>
+:root{--navy:#061633;--navy2:#0a234a;--blue:#078be8;--cyan:#4bd7ff;--yellow:#ffd51d;--paper:#f4f7fb;--ink:#101b3b;--muted:#5f6c84;--line:#dce5f1;--ok:#1a8f4c;--err:#c0392b}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--paper);color:var(--ink);line-height:1.5;padding-bottom:76px}
+.top{position:sticky;top:0;z-index:20;background:linear-gradient(112deg,#020a18,#06142c 55%,#031027);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:10px;border-bottom:4px solid var(--blue)}
+.top .logo{width:34px;height:34px;border:1.5px solid var(--cyan);border-radius:9px;display:grid;place-items:center;font-weight:950;font-size:10px;color:var(--cyan);flex:none}
+.top .t{font-weight:800;font-size:15px}
+.top .s{display:block;font-size:10px;color:#8faed1;letter-spacing:.5px;text-transform:uppercase}
+.tabs{position:sticky;top:62px;z-index:19;display:flex;background:#fff;border-bottom:1px solid var(--line);overflow-x:auto}
+.tab{flex:1;min-width:90px;padding:12px 6px;text-align:center;font-size:12.5px;font-weight:700;color:var(--muted);border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
+.tab.on{color:var(--ink);border-bottom-color:var(--yellow)}
+.wrap{max-width:760px;margin:0 auto;padding:18px 16px}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 6px 18px rgba(8,31,69,.06)}
+h2{font-size:18px;margin-bottom:6px}
+.hint{color:var(--muted);font-size:13px;margin-bottom:12px}
+label{display:block;font-size:13px;font-weight:700;margin:12px 0 4px}
+input[type=text],textarea,select{width:100%;border:1px solid #b9c6d8;border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;background:#fff;color:var(--ink)}
+textarea{resize:vertical}
+textarea#prompt{min-height:90px}
+.btn{background:var(--blue);color:#fff;border:none;border-radius:11px;padding:12px 18px;font-size:14.5px;font-weight:800;cursor:pointer;width:100%;margin-top:12px}
+.btn:disabled{background:#b9c6d8;cursor:not-allowed}
+.btn.gold{background:var(--yellow);color:#101b3b}
+.btn.red{background:var(--err)}
+.btn.ghost{background:#fff;border:1px solid var(--line);color:var(--ink)}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row .btn{flex:1;min-width:130px}
+.pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:700}
+.pill.ok{background:#e2f4e8;color:var(--ok)}
+.pill.no{background:#fdecea;color:var(--err)}
+.slide-card{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px;background:#fbfdff}
+.slide-card .h{font-weight:800;font-size:14px}
+.slide-card .b{font-size:13px;color:#3a4a68;margin-top:4px;white-space:pre-line}
+.slide-card .x{float:right;border:none;background:none;color:var(--err);font-size:16px;cursor:pointer}
+.preview{position:relative;background:#000;border-radius:12px;overflow:hidden;aspect-ratio:16/9;margin-bottom:10px}
+.preview video,.preview canvas{width:100%;height:100%;object-fit:contain;background:#000}
+.rec-dot{position:absolute;top:8px;left:8px;background:#d91515;color:#fff;font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;display:none}
+.rec-dot.on{display:block;animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.3}}
+.script-box{background:#f2f7fd;border:1px dashed #8fb6dd;border-radius:10px;padding:10px 12px;font-size:14px;line-height:1.7;margin:8px 0}
+.meter{height:8px;background:#e6edf4;border-radius:999px;overflow:hidden;margin-top:8px}
+.meter i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--blue),var(--cyan));transition:width .2s}
+.small{font-size:12px;color:var(--muted)}
+.warn{background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:10px 12px;font-size:12.5px;color:#6b5900;margin:10px 0}
+.okbox{background:#e2f4e8;border:1px solid #a9d9b8;border-radius:10px;padding:10px 12px;font-size:13px;color:#0d5c35;margin:10px 0}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;z-index:20;display:flex;background:#fff;border-top:1px solid var(--line)}
+.bottom-nav .bn{flex:1;text-align:center;padding:10px 4px 12px;font-size:10.5px;font-weight:800;color:var(--muted);cursor:pointer}
+.bottom-nav .bn.on{color:var(--blue)}
+.bottom-nav .bn .ic{font-size:19px;display:block}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <span class="logo">RCW</span>
+  <div><span class="t">RCW Channel Bridge</span><span class="s">Prompt → Video → YouTube</span></div>
+</div>
+
+<div class="tabs" id="tabs">
+  <div class="tab on" data-t="create">📝 Create</div>
+  <div class="tab" data-t="record">🎬 Record</div>
+  <div class="tab" data-t="publish">📤 Publish</div>
+  <div class="tab" data-t="bridge">🔗 Bridge</div>
+</div>
+
+<!-- ============ CREATE ============ -->
+<div class="wrap" id="page-create">
+  <div class="card">
+    <h2>Describe your video</h2>
+    <p class="hint">Type what you want — the tool drafts the title, description, tags and a slide-by-slide script.</p>
+    <textarea id="prompt" placeholder="e.g. How to reset the root password on RHEL 10 in 4 steps"></textarea>
+    <div class="warn" id="aiWarn">⚙️ AI generation needs a free <b>Gemini API key</b> (aistudio.google.com). Without it, you can write the script manually below.</div>
+    <label>Gemini API key <span class="small">(stored only on this phone)</span></label>
+    <input type="text" id="geminiKey" placeholder="AIza..." autocomplete="off">
+    <button class="btn gold" id="btnGen">✨ Generate script with AI</button>
+    <button class="btn ghost" id="btnManual" style="margin-top:8px">✍️ Write script manually</button>
+  </div>
+
+  <div class="card" id="scriptCard" style="display:none">
+    <h2>Video script</h2>
+    <p class="hint">Each card is one slide. Edit text, add or remove slides.</p>
+    <label>Title</label><input type="text" id="vTitle" placeholder="Video title">
+    <label>Description</label><textarea id="vDesc" rows="4" placeholder="Description…"></textarea>
+    <label>Tags <span class="small">(comma separated)</span></label><input type="text" id="vTags" placeholder="RHEL 10, RHCSA, Linux">
+    <div id="slides"></div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn ghost" id="btnAddSlide">+ Add slide</button>
+      <button class="btn" id="btnToRecord">Save &amp; go to Record →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ RECORD ============ -->
+<div class="wrap" id="page-record" style="display:none">
+  <div class="card">
+    <h2>Record your video</h2>
+    <p class="hint">Your slides play full-screen with the script as a teleprompter. Read it aloud — your voice + slides become the video.</p>
+    <div class="preview"><canvas id="recCanvas" width="1280" height="720"></canvas><span class="rec-dot" id="recDot">● REC</span></div>
+    <div class="script-box" id="teleprompter">—</div>
+    <div class="row">
+      <button class="btn gold" id="btnRec">🔴 Start recording</button>
+      <button class="btn ghost" id="btnNext">Next slide →</button>
+    </div>
+    <p class="small" id="recStatus" style="margin-top:8px">Slide 1 of 1 · mic: —</p>
+  </div>
+  <div class="card" id="doneCard" style="display:none">
+    <h2>Recording complete ✅</h2>
+    <div class="preview"><video id="prevVideo" controls></video></div>
+    <p class="small" id="fileInfo"></p>
+    <button class="btn" id="btnToPublish">Upload to YouTube →</button>
+  </div>
+</div>
+
+<!-- ============ PUBLISH ============ -->
+<div class="wrap" id="page-publish" style="display:none">
+  <div class="card">
+    <h2>Publish to YouTube</h2>
+    <p class="hint">Connect your channel once, then upload with title, description, tags and thumbnail.</p>
+    <div id="ytBox">
+      <button class="btn" id="btnConnect">🔗 Connect YouTube channel</button>
+      <p class="small" style="margin-top:8px" id="ytStatus">Not connected. You'll approve access in Google's official window — no password needed.</p>
+    </div>
+    <div id="publishBox" style="display:none">
+      <div class="okbox" id="ytConnected">✅ Connected</div>
+      <label>Title</label><input type="text" id="pTitle">
+      <label>Description</label><textarea id="pDesc" rows="5"></textarea>
+      <label>Tags</label><input type="text" id="pTags">
+      <label>Privacy</label>
+      <select id="pPrivacy"><option value="private">Private</option><option value="unlisted">Unlisted</option><option value="public">Public</option></select>
+      <label>Thumbnail</label>
+      <div class="row">
+        <button class="btn ghost" id="btnThumbFromSlide">Use slide 1</button>
+        <button class="btn ghost" id="btnThumbFile">Choose image…</button>
+      </div>
+      <input type="file" id="thumbFile" accept="image/*" style="display:none">
+      <label>Playlist ID <span class="small">(optional)</span></label><input type="text" id="pPlaylist" placeholder="PL…">
+      <div class="meter"><i id="upBar"></i></div>
+      <p class="small" id="upStatus">Ready.</p>
+      <button class="btn red" id="btnUpload">⬆️ Upload to YouTube</button>
+    </div>
+  </div>
+</div>
+
+<div class="wrap" id="page-bridge" style="display:none">
+  <div class="card">
+    <h2>🔗 Bridge — let RCW assistant upload for you</h2>
+    <p class="hint">This is the official way to connect <b>me (RCW assistant)</b> to your YouTube channel without passwords.
+    The tool creates <b>scoped credentials</b> (YouTube channel only, revocable anytime) that you paste into our chat once.
+    After that: you give a topic here → I generate the lab video → I upload it to your channel.</p>
+    <div class="okbox">✅ Uses Google's official OAuth — no password is ever shared.</div>
+    <label>Refresh token <span class="small">(from auth step)</span></label>
+    <input type="text" id="bridgeRefresh" placeholder="1//0abc..." autocomplete="off">
+    <label>OAuth Client ID</label>
+    <input type="text" id="bridgeClientId" placeholder="xxxx.apps.googleusercontent.com" autocomplete="off">
+    <label>OAuth Client secret</label>
+    <input type="text" id="bridgeSecret" placeholder="GOCSPX-..." autocomplete="off">
+    <p class="small" style="margin-top:6px">How to get these: ① Create a Google Cloud project → enable <b>YouTube Data API v3</b> →
+    ② OAuth consent screen (External, add yourself as test user) → ③ Credentials → Create <b>OAuth Client ID (Desktop app)</b> →
+    ④ On a PC: <code>pip install google-auth google-auth-oauthlib google-api-python-client</code> → run <code>python auth.py --secrets client_secret.json</code> →
+    ⑤ Open the URL it prints, sign in, click Allow → a <code>credentials.json</code> file appears → open it and copy the 3 values above.</p>
+    <button class="btn" id="btnTestBridge">🔍 Test connection to my channel</button>
+    <p class="small" id="bridgeStatus" style="margin-top:8px">Not tested yet.</p>
+    <button class="btn gold" id="btnCopyBridge" style="margin-top:8px">📋 Copy bridge credentials for RCW assistant</button>
+  </div>
+</div>
+
+<div class="bottom-nav">
+  <div class="bn on" data-t="create"><span class="ic">📝</span>Create</div>
+  <div class="bn" data-t="record"><span class="ic">🎬</span>Record</div>
+  <div class="bn" data-t="publish"><span class="ic">📤</span>Publish</div>
+  <div class="bn" data-t="bridge"><span class="ic">🔗</span>Bridge</div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
