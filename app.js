@@ -29,10 +29,23 @@ $('btnGen').addEventListener('click', async ()=>{
   $('btnGen').disabled=true; $('btnGen').textContent='Generating script…';
   try{
     const sys='You create step-by-step LAB EXERCISE video scripts for IT training (Linux/RHCSA, AWS, Azure, VMware). Reply ONLY with JSON: {"title":"...","description":"... (2-3 sentences + link www.rcwittraining.in)","tags":["..."],"slides":[{"heading":"...","body":"2-4 short lines with commands/steps"}]}. 4-8 slides. Commands on their own lines. No markdown.';
-    const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key='+encodeURIComponent(key),{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({contents:[{role:'user',parts:[{text:sys+'\n\nTopic: '+prompt}]}]})
-    });
+    // Try current models in order (older models get retired by Google)
+    const models=['gemini-2.5-flash','gemini-2.0-flash','gemini-1.5-flash-latest','gemini-1.5-flash'];
+    let r=null,lastErr=null;
+    for(const model of models){
+      try{
+        r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+model+':generateContent?key='+encodeURIComponent(key),{
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({contents:[{role:'user',parts:[{text:sys+'\n\nTopic: '+prompt}]}]})
+        });
+        if(r.ok) break;
+        lastErr=' (model '+model+'): '+r.status;
+        const ej=await r.json().catch(()=>null);
+        if(ej&&ej.error) lastErr=' — '+ej.error.message;
+        r=null;
+      }catch(e){ lastErr=' — '+e.message; r=null; }
+    }
+    if(!r) throw new Error('AI request failed'+lastErr);
     if(!r.ok){ let msg='AI request failed ('+r.status+')'; try{ const ej=await r.json(); msg+=' — '+(ej.error&&(ej.error.message||ej.error.status)||''); }catch(_){} throw new Error(msg); }
     const j=await r.json();
     const txt=j.candidates[0].content.parts[0].text;
