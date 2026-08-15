@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RCW YouTube Token Generator (mobile)</title>
+<style>
+body{font-family:system-ui,Arial,sans-serif;background:#f4f7fb;color:#101b3b;margin:0;padding:20px;line-height:1.6}
+.card{max-width:640px;margin:0 auto;background:#fff;border:1px solid #dce5f1;border-radius:16px;padding:24px;box-shadow:0 6px 18px rgba(8,31,69,.08)}
+h1{font-size:22px;margin:0 0 6px}
+.hint{color:#5f6c84;font-size:14px;margin-bottom:18px}
+label{display:block;font-weight:700;font-size:13px;margin:14px 0 4px}
+input{width:100%;border:1px solid #b9c6d8;border-radius:10px;padding:11px 12px;font-size:14px;box-sizing:border-box}
+.btn{display:block;width:100%;background:#078be8;color:#fff;border:none;border-radius:11px;padding:14px;font-size:15px;font-weight:800;cursor:pointer;margin-top:16px}
+.btn:disabled{background:#b9c6d8}
+.out{background:#f2f7fd;border:1px dashed #8fb6dd;border-radius:10px;padding:12px;margin-top:16px;font-size:13px;word-break:break-all;display:none}
+.out b{color:#0a234a}
+.copy{background:#ffd51d;color:#101b3b;border:none;border-radius:9px;padding:10px 16px;font-weight:800;cursor:pointer;margin-top:10px}
+.warn{background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:12px;font-size:13px;color:#6b5900;margin-top:14px}
+.ok{background:#e2f4e8;border:1px solid #a9d9b8;border-radius:10px;padding:12px;font-size:13px;color:#0d5c35;margin-top:14px}
+.small{font-size:12px;color:#5f6c84}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🔑 RCW YouTube Token Generator</h1>
+  <p class="hint">Runs entirely on your phone. Enter your OAuth Client ID + Secret (from Step 4), sign in with Google, and get your <b>Refresh Token</b> — no PC needed.</p>
+
+  <div id="step1">
+    <label>OAuth Client ID</label>
+    <input id="cid" placeholder="xxxx.apps.googleusercontent.com" autocomplete="off">
+    <label>OAuth Client Secret</label>
+    <input id="cs" placeholder="GOCSPX-..." autocomplete="off">
+    <button class="btn" id="btnGo">🔗 Connect my YouTube channel</button>
+    <div class="warn">Your credentials are used only in your browser to talk to Google. Nothing is uploaded anywhere.</div>
+  </div>
+
+  <div id="step2" style="display:none">
+    <div class="ok" id="codeMsg">Almost done! Tap the button to exchange the code for your Refresh Token.</div>
+    <button class="btn" id="btnExchange">🔓 Get my Refresh Token</button>
+  </div>
+
+  <div id="step3" style="display:none">
+    <div class="ok">✅ Connected! Copy these 3 values into the <b>Bridge tab</b> of RCW Channel Bridge (or send to the assistant):</div>
+    <div class="out" id="outBox"></div>
+    <button class="copy" id="btnCopy">📋 Copy all 3 values</button>
+  </div>
+  <p class="small" id="err" style="color:#c0392b;margin-top:10px"></p>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const REDIRECT='https://rcwittraining.github.io/channel-bridge/token.html'; // must match your OAuth redirect URI
+let cid='', cs='', code='';
+
+$('btnGo').addEventListener('click', ()=>{
+  cid=$('cid').value.trim(); cs=$('cs').value.trim();
+  if(!cid||!cs){ $('err').textContent='Enter both Client ID and Client Secret.'; return; }
+  $('err').textContent='';
+  const scopes=['https://www.googleapis.com/auth/youtube.upload','https://www.googleapis.com/auth/youtube'].join(' ');
+  const url='https://accounts.google.com/o/oauth2/v2/auth?client_id='+encodeURIComponent(cid)+
+    '&redirect_uri='+encodeURIComponent(REDIRECT)+
+    '&response_type=code&scope='+encodeURIComponent(scopes)+
+    '&access_type=offline&prompt=consent';
+  window.location.href=url;
+});
+
+// On return from Google, the URL has ?code=...
+(function(){
+  const p=new URLSearchParams(location.search);
+  code=p.get('code')||'';
+  if(code){
+    $('step1').style.display='none';
+    $('step2').style.display='block';
+  }
+})();
+
+$('btnExchange').addEventListener('click', async ()=>{
+  $('btnExchange').disabled=true; $('err').textContent='';
+  try{
+    const r=await fetch('https://oauth2.googleapis.com/token',{
+      method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:'client_id='+encodeURIComponent(cid)+'&client_secret='+encodeURIComponent(cs)+
+           '&code='+encodeURIComponent(code)+'&grant_type=authorization_code&redirect_uri='+encodeURIComponent(REDIRECT)
+    });
+    const j=await r.json();
+    if(!r.ok) throw new Error(j.error_description||j.error||r.status);
+    $('step2').style.display='none';
+    $('step3').style.display='block';
+    const out='Client ID: '+cid+'\nClient Secret: '+cs+'\nRefresh Token: '+j.refresh_token;
+    $('outBox').textContent=out;
+    window.__tokenBlock=out;
+  }catch(e){ $('err').textContent='Exchange failed: '+e.message; $('btnExchange').disabled=false; }
+});
+
+$('btnCopy').addEventListener('click', ()=>{
+  const t=window.__tokenBlock||'';
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(()=>alert('Copied! Paste into the Bridge tab.')).catch(()=>prompt('Copy these:',t)); }
+  else prompt('Copy these:', t);
+});
+</script>
+</body>
+</html>
