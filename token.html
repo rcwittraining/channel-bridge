@@ -36,7 +36,9 @@ input{width:100%;border:1px solid #b9c6d8;border-radius:10px;padding:11px 12px;f
   </div>
 
   <div id="step2" style="display:none">
-    <div class="ok" id="codeMsg">Almost done! Tap the button to exchange the code for your Refresh Token.</div>
+    <div class="ok" id="codeMsg">Almost done! Google just redirected to <b>http://localhost/?code=...</b> — that page won't load (expected).</div>
+    <label>Copy the <b>code</b> from the address bar (after <code>?code=</code>, up to the next <code>&amp;</code>) and paste it here:</label>
+    <input id="codeInput" placeholder="4/0A...">
     <button class="btn" id="btnExchange">🔓 Get my Refresh Token</button>
   </div>
 
@@ -50,7 +52,7 @@ input{width:100%;border:1px solid #b9c6d8;border-radius:10px;padding:11px 12px;f
 
 <script>
 const $=id=>document.getElementById(id);
-const REDIRECT='https://rcwittraining.github.io/channel-bridge/token.html'; // must match your OAuth redirect URI
+const REDIRECT='http://localhost'; // Google always accepts localhost; paste the ?code= from the URL bar
 let cid='', cs='', code='';
 
 $('btnGo').addEventListener('click', ()=>{
@@ -76,6 +78,9 @@ $('btnGo').addEventListener('click', ()=>{
 })();
 
 $('btnExchange').addEventListener('click', async ()=>{
+  const manual=$('codeInput').value.trim();
+  if(manual) code=manual;
+  if(!code){ $('err').textContent='No code found. Paste the code from the URL bar first.'; return; }
   $('btnExchange').disabled=true; $('err').textContent='';
   try{
     const r=await fetch('https://oauth2.googleapis.com/token',{
