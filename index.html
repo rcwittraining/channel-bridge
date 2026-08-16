@@ -161,6 +161,14 @@ textarea#prompt{min-height:90px}
       <div class="meter"><i id="upBar"></i></div>
       <p class="small" id="upStatus">Ready.</p>
       <button class="btn red" id="btnUpload">⬆️ Upload to YouTube</button>
+      <div style="border-top:2px dashed var(--line);margin-top:16px;padding-top:12px">
+        <h2 style="font-size:16px">🎥 Upload a REAL recording (Windows / cloud walkthrough)</h2>
+        <p class="hint">Recorded a real walkthrough with your screen recorder? Pick the MP4 and it uploads straight to YouTube with the details above.</p>
+        <input type="file" id="recFileInput" accept="video/*" style="margin-bottom:8px">
+        <button class="btn gold" id="btnUploadFile">⬆️ Upload recorded video</button>
+        <div class="meter" style="margin-top:8px"><i id="upBar2"></i></div>
+        <p class="small" id="upStatus2">Pick a video file and tap upload.</p>
+      </div>
     </div>
   </div>
 </div>
@@ -195,6 +203,6 @@ textarea#prompt{min-height:90px}
   <div class="bn" data-t="bridge"><span class="ic">🔗</span>Bridge</div>
 </div>
 
-<script src="app.v15.js"></script>
+<script src="app.v16.js"></script>
 </body>
 </html>
