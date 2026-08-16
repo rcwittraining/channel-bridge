@@ -28,7 +28,7 @@ $('btnGen').addEventListener('click', async ()=>{
   state.aiKey=key; save();
   $('btnGen').disabled=true; $('btnGen').textContent='Generating script…';
   try{
-    const sys='You create step-by-step LAB EXERCISE video scripts for IT training (Linux/RHCSA, AWS, Azure, VMware). Reply ONLY with JSON: {"title":"...","description":"... (2-3 sentences + link www.rcwittraining.in)","tags":["..."],"slides":[{"heading":"...","body":"2-4 short lines with commands/steps"}]}. 4-8 slides. Commands on their own lines. No markdown.';
+    const sys='You create step-by-step LAB EXERCISE video scripts for IT training (Linux/RHCSA, AWS, Azure, VMware). Reply ONLY with JSON: {"title":"...","description":"...","tags":["..."],"slides":[{"heading":"...","body":"2-4 short spoken-explanation lines","code":["$ command","output","# comment"]}]}. 4-10 slides. For CODING/terminal labs put real commands in "code" ($ prefix for commands, plain for output, # for comments) and short spoken explanation in "body". For concept/UI labs leave "code" empty and use "body". No markdown.';
     // Ask Google which models this key can use, then pick the best available.
     // (Model names change/get retired — never hardcode them.)
     $('btnGen').textContent='Contacting Gemini…';
@@ -44,7 +44,7 @@ $('btnGen').addEventListener('click', async ()=>{
     const txt=j.candidates[0].content.parts[0].text;
     const data=JSON.parse(txt.replace(/```json|```/g,'').trim());
     const raw=data.slides||data.slides_list||[];
-    state.slides=raw.map(s=>({h:(s.heading||s.h||s.title||'Step'),b:(s.body||s.b||s.content||s.text||'')}));
+    state.slides=raw.map(s=>({h:(s.heading||s.h||s.title||'Step'),b:(s.body||s.b||s.content||s.text||''),c:(s.code||[])}));
     if(!state.slides.length) state.slides=[{h:'Lab Exercise',b:prompt}];
     $('vTitle').value=data.title||prompt;
     $('vDesc').value=(data.description||'Hands-on lab exercise from RCW IT Training.\n\nPractice free: www.rcwittraining.in')+'\n\n#RHCSA #Linux #AWS #Azure #ITTraining';
@@ -83,11 +83,13 @@ function renderSlides(){
     const d=document.createElement('div'); d.className='slide-card';
     d.innerHTML='<button class="x" data-i="'+i+'">✕</button><div class="h">Slide '+(i+1)+'</div>'+
       '<label>Heading</label><input type="text" class="sh" data-i="'+i+'" value="'+s.h.replace(/"/g,'&quot;')+'">'+
-      '<label>Content (steps / commands)</label><textarea class="sb" data-i="'+i+'" rows="4">'+s.b.replace(/</g,'&lt;')+'</textarea>';
+      '<label>Content (spoken explanation)</label><textarea class="sb" data-i="'+i+'" rows="3">'+s.b.replace(/</g,'&lt;')+'</textarea>'+
+      '<label>Code (terminal lines - one per line, $ for commands)</label><textarea class="sc" data-i="'+i+'" rows="5" placeholder="$ sudo useradd -m jane\noutput line here">'+(s.c||[]).join('\n').replace(/</g,'&lt;')+'</textarea>';
     box.appendChild(d);
   });
   box.querySelectorAll('.sh').forEach(el=>el.addEventListener('input',e=>{state.slides[+e.target.dataset.i].h=e.target.value;save();}));
   box.querySelectorAll('.sb').forEach(el=>el.addEventListener('input',e=>{state.slides[+e.target.dataset.i].b=e.target.value;save();}));
+  box.querySelectorAll('.sc').forEach(el=>el.addEventListener('input',e=>{state.slides[+e.target.dataset.i].c=el.value.split('\n').filter(x=>x.trim()!=='');save();}));
   box.querySelectorAll('.x').forEach(el=>el.addEventListener('click',e=>{state.slides.splice(+e.target.dataset.i,1);renderSlides();save();}));
 }
 $('btnAddSlide').addEventListener('click', ()=>{ state.slides.push({h:'New Slide',b:'Step: …'}); renderSlides(); save(); });
@@ -166,7 +168,7 @@ $('btnCloudRender').addEventListener('click', async ()=>{
     if(!pat) return;
     localStorage.setItem('rcw-bridge-pat', pat);
   }
-  const script={title:title, description:$('vDesc').value, tags:($('vTags').value||'').split(',').map(s=>s.trim()).filter(Boolean), slides:state.slides.map(s=>({heading:s.h, body:s.b, narration:s.b}))};
+  const script={title:title, description:$('vDesc').value, tags:($('vTags').value||'').split(',').map(s=>s.trim()).filter(Boolean), slides:state.slides.map(s=>({heading:s.h, body:s.b, code:s.c||[], narration:s.b}))};
   const b64=btoa(unescape(encodeURIComponent(JSON.stringify(script))));
   const privacy=$('pPrivacy')?$('pPrivacy').value:'private';
   const playlist=$('pPlaylist').value.trim();
